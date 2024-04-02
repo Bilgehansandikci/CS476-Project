@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    #sidebar {
+      float: left;
+      width: 200px;
+      height: 100vh; 
+      background-color: beige;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Adjustments for button style */
+    #draw-button {
+        display: block;
+        margin-top: 10px;
+    }
+  </style>
+<script id="vertex-shader" type="x-shader/x-vertex">
+  attribute vec4 vPosition;
+  uniform float xTransform;
+  uniform float yTransform;
+  uniform float zoom;
+  
+  void main() {
+      // Apply transformations
+      vec4 transformedPosition = vPosition + vec4(xTransform, yTransform, 0.0, 0.0);
+      transformedPosition.x *= zoom;
+      transformedPosition.y *= zoom;
+        
+      // Set the final position
+      gl_Position = transformedPosition;
+      gl_PointSize = 10.0; // Example point size, adjust as needed
+  }
+  </script>
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+void main(){
+    gl_FragColor = vec4( 0.0, 0.0, 0.0, 1.0 );
+}
+</script>
+
+</head>
+<body>
+  <div id="sidebar">
+      <label for="n-value">Enter n value:</label>
+      <input type="number" id="n-value" name="n-value" min="1" step="1" value = "10">
+      <br><br>
+      <label for="distribution-select">Select distribution:</label>
+      <select id="distribution-select" name="distribution-select">
+          <option value="gaussian">Gaussian Distribution</option>
+          <option value="normal">Normal Distribution</option>
+      </select>
+      <br><br>
+      <button id="draw-button">Draw</button>
+      
+      <br><br><br>
+      <label for="algorithm-select">Select Algorithm</label>
+      <select id="algorithm-select" name="algorithm-select">
+        <option value="grahams-scan">Graham's Scan</option>
+        <option value="gift-wrap">Gift Wrap</option>
+        <option value="quick-hull">Quick Hull</option>
+        <option value="merge-hull">Merge Hull</option>
+      </select>
+      <br><br>
+      <button id="calculate-hull-button">Calculate Hull</button>
+      <br><br>
+      <button id="animate-hull-button">Animate Hull</button>
+  </div>
+
+  <div id="main-content">
+    <canvas id="gl-canvas" width="768" height="768" style="border: 1px solid black;">
+      Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+</div>
+</body>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MV.js"></script>
+<script type="text/javascript" src="triangle.js"></script>
+</html>
+
+
+
