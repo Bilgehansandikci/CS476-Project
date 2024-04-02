@@ -14,19 +14,16 @@ var zoom = 1.0;
 var isDragging = false;
 var startX, startY;
 
+var newPointsEnabled = false;
+
 
 window.onload = function init(){
     var canvas = document.getElementById( "gl-canvas" );
      gl = WebGLUtils.setupWebGL( canvas );    
      if ( !gl ) { alert( "WebGL isn't available" ); 
-}        
-// Three Vertices        
+}    
 
-// var vertices = [
-//         vec2( -1, -1 ),
-//         vec2(  0,  1 ),
-//         vec2(  1, -1 )    
-// ];    
+points = [];
 
 // Get the HTML elements
 var nValueInput = document.getElementById("n-value");
@@ -35,12 +32,13 @@ var drawButton = document.getElementById("draw-button");
 //var algorithmDropdown = document.getElementById("algorithm-select");
 var calculateButton = document.getElementById("calculate-hull-button");
 var animateButton = document.getElementById("animate-hull-button");
-
+var newPointsCheckbox = document.getElementById("add-points-checkbox");
 
 // Add event listener to the draw button
 drawButton.addEventListener("click", createPoints);
 calculateButton.addEventListener("click", calculateHull);
 animateButton.addEventListener("click", calculateAnimation);
+newPointsCheckbox.addEventListener("click",function() {newPointsEnabled = newPointsCheckbox.checked;});
 
 var isDragging = false;
 var startX, startY;
@@ -82,15 +80,18 @@ canvas.addEventListener("wheel", function(event) {
 });
 
 canvas.addEventListener("click", function(event) {
-    var rect = canvas.getBoundingClientRect();
-    var clickX = (event.clientX - rect.left) / canvas.width * 2 - 1;
-    var clickY = 1 - (event.clientY - rect.top) / canvas.height * 2; // Invert y-axis for canvas coordinates
 
-    clickX = (clickX) / (zoom) - currentXTransform;
-    clickY = (clickY) / (zoom) - currentYTransform;
+    if(newPointsEnabled){
+        var rect = canvas.getBoundingClientRect();
+        var clickX = (event.clientX - rect.left) / canvas.width * 2 - 1;
+        var clickY = 1 - (event.clientY - rect.top) / canvas.height * 2; // Invert y-axis for canvas coordinates
 
-    points.push(vec2(clickX, clickY));
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW);
+        clickX = (clickX) / (zoom) - currentXTransform;
+        clickY = (clickY) / (zoom) - currentYTransform;
+
+        points.push(vec2(clickX, clickY));
+        gl.bufferData(gl.ARRAY_BUFFER, flatten(points), gl.STATIC_DRAW);
+    }
     render();
 });
 
@@ -133,10 +134,13 @@ function render() {
 
     gl.clear( gl.COLOR_BUFFER_BIT ); 
     gl.drawArrays( gl.POINTS, 0, points.length );
+
+    renderHull();
+    renderAnimation();
 }
 
 function renderHull(){
-    render();
+    //render();
 
     if(hull){
         gl.bufferData( gl.ARRAY_BUFFER, flatten(hull), gl.STATIC_DRAW );
@@ -146,11 +150,17 @@ function renderHull(){
 }
 
 function renderAnimation(){
-    render();
-    renderHull();
+    //render();
+    //renderHull();
 
-    gl.bufferData( gl.ARRAY_BUFFER, flatten(animation), gl.STATIC_DRAW );
-    gl.drawArrays( gl.LINE_STRIP, 0, animation.length );
+    if(animation && animationFlag){
+        var vColor = gl.getAttribLocation( program, "vColor" );
+        gl.vertexAttribPointer( vColor, 4, gl.FLOAT, false, 0, 0 );
+        gl.enableVertexAttribArray( vColor );
+
+        gl.bufferData( gl.ARRAY_BUFFER, flatten(animation), gl.STATIC_DRAW );
+        gl.drawArrays( gl.LINE_STRIP, 0, animation.length );
+    }
 }
 
 // Standard Normal variate using Box-Muller transform.
@@ -200,8 +210,35 @@ function createPoints() {
 }
 
 async function calculateHull() {
-    console.log("calc hull\n");
+    //console.log("calc hull\n");
+    animationTime = document.getElementById("animation-speed").value;
 
+    hull = [];
+
+    var selectedAlgorithm = document.getElementById("algorithm-select").value;
+    if(selectedAlgorithm === "grahams-scan"){
+        console.log("graham\n");
+    }
+    else if(selectedAlgorithm === "gift-wrap"){
+        console.log("jarvis\n");
+        await giftWrap();
+    }
+    else if(selectedAlgorithm === "quick-hull"){
+        console.log("quick\n");
+    }
+    else if(selectedAlgorithm === "merge-hull"){
+        console.log("merge\n");
+    }
+    
+    //console.log("zort?");
+
+    animationFlag = 0;
+    animation = [];
+
+    render();
+}
+
+async function giftWrap(){
     //Sort points
     points.sort(function(a, b) {
         if (a[1] !== b[1]) {
@@ -210,6 +247,7 @@ async function calculateHull() {
             return a[0] - b[0]; // If y-coordinates are equal, sort by x-coordinate
         }
     });    //hull = points;
+
     var p1 = points[0];
     var p2 = points[points.length - 1];
 
@@ -226,7 +264,7 @@ async function calculateHull() {
 
         hull.push(curPoint);
 
-        lowestAngle = 4;
+        lowestAngle = 4; //bigger than pi
         for(var j = curID; j < points.length; j++){
             angle = Math.atan2( curPoint[1] - points[j][1], curPoint[0] - points[j][0] );
             console.log(j);
@@ -235,7 +273,7 @@ async function calculateHull() {
             if(animationFlag){
                 animation = [curPoint , points[j]];
                 await sleep(animationTime);
-                renderAnimation();
+                render();//renderAnimation();
             }
 
             if(angle < lowestAngle){
@@ -255,7 +293,7 @@ async function calculateHull() {
 
         hull.push(curPoint);
 
-        lowestAngle = 4;
+        lowestAngle = 4; //bigger than pi
         for(var j = 0; j < curID; j++){
             angle = Math.atan2( - curPoint[1] + points[j][1], -curPoint[0] + points[j][0] );
             console.log(j);
@@ -264,7 +302,7 @@ async function calculateHull() {
             if(animationFlag){
                 animation = [curPoint , points[j]];
                 await sleep(animationTime);
-                renderAnimation();
+                render();//renderAnimation();
             }
 
             if(angle < lowestAngle){
@@ -279,15 +317,15 @@ async function calculateHull() {
         if(curPoint == p1) break;
     }
 
-    animationFlag = 0;
-    renderHull();
+    hull.push(curPoint);
 }
-
 
 
 function calculateAnimation() {
     console.log("Anime >_<\n");
     animationFlag = 1;
+
+    calculateHull();
     return;
 }
 
